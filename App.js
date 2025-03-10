@@ -7,23 +7,28 @@ import {
     FlatList,
     Image,
     Switch,
+    TextInput,
 } from "react-native";
+import { Button, Menu, Provider, Portal, Dialog, MD3LightTheme, MD3DarkTheme } from "react-native-paper";
 import antiquesData from "./assets/antiquesData.json";
 
 const ThemeContext = createContext();
 
 // Елемент списку антикваріату
-const ListItem = ({ title, image, price, itemBgColor }) => (
-    <View style={[styles.listItem, { backgroundColor: itemBgColor }]}>
-        <Image source={image} style={styles.image} />
-        <Text style={styles.listText}>{title}</Text>
-        <Text style={styles.priceText}>${price}</Text>
-    </View>
+const ListItem = ({ title, image, price, itemBgColor, onPress, onDelete }) => (
+    <TouchableOpacity onPress={onPress} onLongPress={onDelete}>
+        <View style={[styles.listItem, { backgroundColor: itemBgColor }]}>
+            <Image source={image} style={styles.image} />
+            <Text style={styles.listText}>{title}</Text>
+            <Text style={styles.priceText}>${price}</Text>
+            <Button onPress={onDelete} mode="contained" compact>Видалити</Button>
+        </View>
+    </TouchableOpacity>
 );
 
 // Зміна теми
 const ThemeSwitcher = () => {
-    const { theme, toggleTheme } = useContext(ThemeContext);
+    const { theme, toggleTheme, accentColor } = useContext(ThemeContext);
     return (
         <View style={styles.switchContainer}>
             <Text style={[styles.text, { color: theme === "dark" ? "white" : "black", marginRight: 20 }]}>
@@ -32,22 +37,12 @@ const ThemeSwitcher = () => {
             <Switch
                 value={theme === "dark"}
                 onValueChange={toggleTheme}
-                thumbColor={theme === "dark" ? "#f1c40f" : "#ecf0f1"}
-                trackColor={{ false: "#95a5a6", true: "#f39c12" }}
+                thumbColor={accentColor}
+                trackColor={{ false: "#95a5a6", true: accentColor }}
             />
         </View>
     );
 };
-
-// Кнопка навігації
-const NavButton = ({ title, isActive, onPress, activeColor, inactiveColor }) => (
-    <TouchableOpacity
-        style={[styles.button, { backgroundColor: isActive ? activeColor : inactiveColor }]}
-        onPress={onPress}
-    >
-        <Text style={styles.buttonText}>{title}</Text>
-    </TouchableOpacity>
-);
 
 // Вибір кольору
 const ColorPicker = ({ colors, selectedColor, onSelect }) => (
@@ -63,12 +58,19 @@ const ColorPicker = ({ colors, selectedColor, onSelect }) => (
 );
 
 // Екран списку антикваріату
-const ScreenOne = ({ itemBgColor }) => (
+const ScreenOne = ({ data, itemBgColor, onDelete, onSelect }) => (
     <FlatList
-        data={antiquesData}
+        data={data}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-            <ListItem title={item.title} image={images[item.image]} price={item.price} itemBgColor={itemBgColor} />
+            <ListItem
+                title={item.title}
+                image={images[item.image]}
+                price={item.price}
+                itemBgColor={itemBgColor}
+                onPress={() => onSelect(item)}
+                onDelete={() => onDelete(item.id)}
+            />
         )}
     />
 );
@@ -80,12 +82,54 @@ const ScreenTwo = (props) => {
         <View>
             <Text style={[styles.text, { color: theme === "dark" ? "white" : "black" }]}>Налаштування</Text>
             <ThemeSwitcher />
-            <Text style={[styles.text, { color: theme === "dark" ? "white" : "black" }]}>Кольори активних кнопок</Text>
-            <ColorPicker colors={["#3498db", "#2ecc71", "#f39c12"]} selectedColor={props.activeButtonColor} onSelect={props.setActiveButtonColor} />
-            <Text style={[styles.text, { color: theme === "dark" ? "white" : "black" }]}>Кольори неактивних кнопок</Text>
-            <ColorPicker colors={["#576574", "#8395a7", "#4b6584"]} selectedColor={props.inactiveButtonColor} onSelect={props.setInactiveButtonColor} />
+
+            <Text style={[styles.text, { color: theme === "dark" ? "white" : "black" }]}>Колір акценту</Text>
+            <ColorPicker colors={["#6750a4", "#3498db", "#f39c12"]} selectedColor={props.accentColor} onSelect={props.setAccentColor} />
+
             <Text style={[styles.text, { color: theme === "dark" ? "white" : "black" }]}>Кольори заднього фону антикваріату</Text>
             <ColorPicker colors={["#ecf0f1", "#f4e1c1", "#d6e6f2"]} selectedColor={props.itemBgColor} onSelect={props.setItemBgColor} />
+        </View>
+    );
+};
+
+// Екран додавання елементів (антикваріату) до списку
+const ScreenThree = ({ onAdd }) => {
+    const [title, setTitle] = useState("");
+    const [price, setPrice] = useState("");
+    const { theme } = useContext(ThemeContext);
+    const borderColor = theme === "dark" ? "white" : "black";
+    const [error, setError] = useState("");
+
+    const handleAdd = () => {
+        if (!title.trim() || !price.trim()) {
+            setError("Будь ласка, заповніть всі поля!");
+            return;
+        }
+        setError(""); // скидання помилки
+        onAdd(title, price);
+        setTitle("");
+        setPrice("");
+    };
+
+    return (
+        <View>
+            <TextInput
+                placeholder="Назва"
+                value={title}
+                onChangeText={setTitle}
+                style={[styles.input, { color: theme === "dark" ? "white" : "black", borderColor }]}
+                placeholderTextColor={theme === "dark" ? "#bbb" : "#666"}
+            />
+            <TextInput
+                placeholder="Ціна"
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="numeric"
+                style={[styles.input, { color: theme === "dark" ? "white" : "black", borderColor }]}
+                placeholderTextColor={theme === "dark" ? "#bbb" : "#666"}
+            />
+            {error ? <Text style={{ color: "red", marginBottom: 25 }}>{error}</Text> : null}
+            <Button mode="contained" onPress={handleAdd}>Додати</Button>
         </View>
     );
 };
@@ -93,30 +137,102 @@ const ScreenTwo = (props) => {
 export default function App() {
     const [activeScreen, setActiveScreen] = useState("one");
     const [theme, setTheme] = useState("light");
-    const [activeButtonColor, setActiveButtonColor] = useState("#3498db");
-    const [inactiveButtonColor, setInactiveButtonColor] = useState("#576574");
+    const [items, setItems] = useState(antiquesData);
+    const [menuVisible, setMenuVisible] = useState(false);
+    const [accentColor, setAccentColor] = useState("#6750a4");
     const [itemBgColor, setItemBgColor] = useState("#ecf0f1");
+    const [selectedItem, setSelectedItem] = useState(null);
 
     const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
+    const addItem = (title, price) => {
+        setItems([...items, { id: Date.now().toString(), title, price, image: "antiques/default.png" }]);
+    };
+
+    const deleteItem = (id) => {
+        setItems(items.filter((item) => item.id !== id));
+    };
+
+    const customTheme = {
+        ...(theme === "light" ? MD3LightTheme : MD3DarkTheme),
+        colors: {
+            ...(theme === "light" ? MD3LightTheme.colors : MD3DarkTheme.colors),
+            primary: accentColor,
+        },
+    };
+
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme }}>
-            <View style={[styles.container, theme === "dark" && styles.darkTheme]}>
-                <View style={styles.navBar}>
-                    <NavButton title="Антикваріат" isActive={activeScreen === "one"} onPress={() => setActiveScreen("one")} activeColor={activeButtonColor} inactiveColor={inactiveButtonColor} />
-                    <NavButton title="Налаштування" isActive={activeScreen === "two"} onPress={() => setActiveScreen("two")} activeColor={activeButtonColor} inactiveColor={inactiveButtonColor} />
+        <Provider theme={customTheme}>
+            <ThemeContext.Provider value={{ theme, toggleTheme, accentColor, setAccentColor }}>
+                <View style={[styles.container, theme === "dark" && styles.darkTheme]}>
+                    <View style={styles.menuContainer}>
+                        <Menu
+                            visible={menuVisible}
+                            onDismiss={() => setMenuVisible(false)}
+                            anchor={
+                                <Button onPress={() => setMenuVisible(true)} style={styles.menuButton}>Меню</Button>
+                            }>
+                            <Menu.Item onPress={() => { setActiveScreen("one"); setMenuVisible(false); }} title="Антикваріат" />
+                            <Menu.Item onPress={() => { setActiveScreen("two"); setMenuVisible(false); }} title="Налаштування" />
+                            <Menu.Item onPress={() => { setActiveScreen("three"); setMenuVisible(false); }} title="Додати" />
+                        </Menu>
+                    </View>
+                    <View style={styles.contentContainer}>
+                        {activeScreen === "one" ? (
+                            <ScreenOne data={items} itemBgColor={itemBgColor} onDelete={deleteItem} onSelect={setSelectedItem} />
+                        ) : activeScreen === "two" ? (
+                            <ScreenTwo accentColor={accentColor} setAccentColor={setAccentColor} itemBgColor={itemBgColor} setItemBgColor={setItemBgColor} />
+                        ) : (
+                            <ScreenThree onAdd={addItem} />
+                        )}
+
+                        <Portal>
+                            <Dialog
+                                visible={!!selectedItem}
+                                onDismiss={() => setSelectedItem(null)}
+                                style={{ backgroundColor: theme === "dark" ? "#333" : "white" }}
+                            >
+                                <Dialog.Title style={{ color: theme === "dark" ? "white" : "black" }}>Деталі</Dialog.Title>
+                                <Dialog.Content>
+                                    {selectedItem && (
+                                        <Text style={{ color: theme === "dark" ? "white" : "black" }}>
+                                            {selectedItem.title} - ${selectedItem.price}
+                                        </Text>
+                                    )}
+                                </Dialog.Content>
+                                <Dialog.Actions>
+                                    <Button onPress={() => setSelectedItem(null)}>Закрити</Button>
+                                </Dialog.Actions>
+                            </Dialog>
+                        </Portal>
+                    </View>
                 </View>
-                <View style={styles.contentContainer}>
-                    {activeScreen === "one" ? <ScreenOne itemBgColor={itemBgColor} /> : <ScreenTwo {...{ activeButtonColor, setActiveButtonColor, inactiveButtonColor, setInactiveButtonColor, itemBgColor, setItemBgColor }} />}
-                </View>
-            </View>
-        </ThemeContext.Provider>
+            </ThemeContext.Provider>
+        </Provider>
     );
 }
 
+// Стилі
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: "#f5f5f5" },
+    darkTheme: { backgroundColor: "#333" },
+    menuContainer: { position: "absolute", top: 20, left: 10, zIndex: 10 },
+    menuButton: { alignSelf: "flex-start", marginTop: 20 },
+    contentContainer: { flex: 1, padding: 20, marginTop: 80 },
+    listItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, marginBottom: 5, borderRadius: 5 },
+    image: { width: 50, height: 50, marginRight: 10 },
+    listText: { fontSize: 16, flex: 1 },
+    priceText: { fontSize: 16, color: "green", fontWeight: "bold", paddingRight: 10 },
+    text: { fontSize: 18, marginBottom: 12, },
+    input: { borderWidth: 1, padding: 10, width: "100%", marginBottom: 30, },
+    colorPickerContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 25, },
+    colorOption: { width: 40, height: 40, marginHorizontal: 5, borderRadius: 5, },
+    switchContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", width: "100%", paddingVertical: 10, marginBottom: 10, },
+});
 
 // Завантаження зображень
 const images = {
+    "antiques/default.png": require("./assets/antiques/default.png"),
     "antiques/amphora.png": require("./assets/antiques/amphora.png"),
     "antiques/black-knight-helm.png": require("./assets/antiques/black-knight-helm.png"),
     "antiques/medal.png": require("./assets/antiques/medal.png"),
@@ -138,86 +254,3 @@ const images = {
     "antiques/power-ring.png": require("./assets/antiques/power-ring.png"),
     "antiques/rune-sword.png": require("./assets/antiques/rune-sword.png"),
 };
-
-// Стилі
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "#f5f5f5",
-    },
-    darkTheme: {
-        backgroundColor: "#333",
-    },
-    navBar: {
-        flexDirection: "row",
-        marginBottom: 10,
-        marginTop: 140,
-    },
-    button: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        marginHorizontal: 10,
-        borderRadius: 5,
-    },
-    buttonText: {
-        color: "white",
-        fontSize: 16,
-    },
-    contentContainer: {
-        width: "90%",
-        padding: 20,
-        borderRadius: 10,
-        marginBottom: 100,
-    },
-    listItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 10,
-        marginBottom: 5,
-        borderRadius: 5,
-    },
-    image: {
-        width: 50,
-        height: 50,
-        marginRight: 10,
-    },
-    listText: {
-        fontSize: 16,
-        flex: 1,
-    },
-    priceText: {
-        fontSize: 16,
-        color: "green",
-        fontWeight: "bold",
-        paddingRight: 10,
-    },
-    settingsContainer: {
-        alignItems: "center",
-    },
-    text: {
-        fontSize: 18,
-        marginBottom: 20,
-    },
-    colorPickerContainer: {
-        flexDirection: "row",
-        justifyContent: "center",
-        marginBottom: 25,
-    },
-    colorOption: {
-        width: 40,
-        height: 40,
-        marginHorizontal: 5,
-        borderRadius: 5,
-    },
-    switchContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "100%",
-        paddingVertical: 10,
-        marginBottom: 10,
-    },
-});
