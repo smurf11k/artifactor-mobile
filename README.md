@@ -1,5 +1,5 @@
 # Artifactor mobile
-Simple mobile app made by using **Expo** and **React** as a school project.
+Simple mobile app made by using **Expo** and **React** for a school project.
 
 ## Features
 - Authorization using [API](https://reqres.in/api)
