@@ -1,11 +1,13 @@
 import React, { useState, createContext, useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Switch, TextInput, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Switch, TextInput, Alert, ScrollView } from "react-native";
 import { Button, Provider, Portal, Dialog, MD3LightTheme, MD3DarkTheme } from "react-native-paper";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { FontAwesome as Icon } from '@expo/vector-icons';
-import antiquesData from "./assets/antiquesData.json";
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import antiquesData from "./app/antiques/antiquesData.json";
+import { launchImageLibrary } from 'react-native-image-picker';
 
 const ThemeContext = createContext();
 const ItemsContext = createContext();
@@ -14,6 +16,15 @@ const AuthContext = createContext();
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const AuthStack = createStackNavigator();
+
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 5 * 60 * 1000, // 5 хвилин
+            cacheTime: 10 * 60 * 1000, // 10 хвилин
+        },
+    },
+});
 
 // Екран авторизації
 const AuthScreen = () => {
@@ -64,8 +75,12 @@ const UserInfo = () => {
 
     return (
         <View style={styles.userInfoContainer}>
+
             <Text style={[styles.userInfoText, { color: theme === "dark" ? "white" : "black" }]}>
-                Поточний користувач: {user?.username}
+                Поточний користувач:
+            </Text>
+            <Text style={[styles.usernameText, { color: theme === "dark" ? "white" : "black" }]}>
+                {user?.username}
             </Text>
             <Button mode="contained" onPress={logout} style={styles.logoutButton}>
                 Вийти
@@ -131,7 +146,7 @@ const ColorPicker = ({ colors, selectedColor, onSelect, isBackground = false }) 
 };
 
 // Екран списку антикваріату
-const ScreenOne = () => {
+const ScreenOne = ({ navigation }) => {
     const { items, deleteItem, itemBgColor } = useContext(ItemsContext);
     const { theme, backgroundColor } = useContext(ThemeContext);
     const [visible, setVisible] = useState(false);
@@ -164,6 +179,7 @@ const ScreenOne = () => {
                 visible={visible}
                 item={selectedItem}
                 onClose={() => setVisible(false)}
+                navigation={navigation}
             />
         </View>
     );
@@ -179,7 +195,6 @@ const ScreenTwo = () => {
 
     return (
         <View style={[styles.container, { backgroundColor }]}>
-            <UserInfo />
             <ThemeSwitcher />
 
             <Text style={[styles.title, { color: theme === "dark" ? "white" : "black" }]}>
@@ -191,26 +206,59 @@ const ScreenTwo = () => {
                 Виберіть колір фону елементів:
             </Text>
             <ColorPicker colors={availableBgColors} selectedColor={itemBgColor} onSelect={setItemBgColor} isBackground />
+
+            <UserInfo />
         </View>
     );
 };
 
-// Екран додавання елементів (антикваріату) до списку
+// Екран для додавання нового антикваріату
 const ScreenThree = () => {
     const [title, setTitle] = useState("");
+    const [description, setDescription] = useState("");
     const [price, setPrice] = useState("");
+    const [image, setImage] = useState(null);
     const { addItem } = useContext(ItemsContext);
     const { theme, backgroundColor } = useContext(ThemeContext);
     const borderColor = theme === "dark" ? "white" : "black";
 
+    const pickImage = () => {
+        const options = {
+            mediaType: 'photo',
+            includeBase64: false,
+            maxHeight: 512,
+            maxWidth: 512,
+            quality: 1,
+        };
+
+        launchImageLibrary(options, (response) => {
+            if (response.didCancel) {
+                console.log('User cancelled image picker');
+            } else if (response.error) {
+                console.log('ImagePicker Error: ', response.error);
+            } else if (response.assets && response.assets[0].uri) {
+                setImage(response.assets[0].uri);
+            }
+        });
+    };
+
     const handleAddItem = () => {
-        if (!title.trim() || !price.trim()) {
+        if (!title.trim() || !description.trim() || !price.trim()) {
             Alert.alert("Помилка", "Будь ласка, заповніть всі поля!");
             return;
         }
-        addItem(title, price);
+
+        addItem({
+            title,
+            description,
+            price,
+            image: image
+        });
+
         setTitle("");
+        setDescription("");
         setPrice("");
+        setImage(null);
     };
 
     return (
@@ -227,6 +275,14 @@ const ScreenThree = () => {
                 placeholderTextColor={theme === "dark" ? "#bbb" : "#666"}
             />
             <TextInput
+                placeholder="Опис"
+                value={description}
+                onChangeText={setDescription}
+                style={[styles.input, { color: theme === "dark" ? "white" : "black", borderColor }]}
+                placeholderTextColor={theme === "dark" ? "#bbb" : "#666"}
+                multiline
+            />
+            <TextInput
                 placeholder="Ціна"
                 value={price}
                 onChangeText={setPrice}
@@ -234,16 +290,124 @@ const ScreenThree = () => {
                 style={[styles.input, { color: theme === "dark" ? "white" : "black", borderColor }]}
                 placeholderTextColor={theme === "dark" ? "#bbb" : "#666"}
             />
-            <Button mode="contained" onPress={handleAddItem}>
+
+            <View style={styles.imagePickerContainer}>
+                <Button mode="outlined" onPress={pickImage} style={styles.imageButton}>
+                    {image ? 'Змінити зображення' : 'Вибрати зображення'}
+                </Button>
+                {image && (
+                    <Image source={{ uri: image }} style={styles.previewImage} />
+                )}
+                {image && (
+                    <Button
+                        mode="text"
+                        onPress={() => setImage(null)}
+                        style={styles.removeImageButton}
+                        textColor="#ff4444"
+                    >
+                        Видалити
+                    </Button>
+                )}
+            </View>
+
+            <Button mode="contained" onPress={handleAddItem} style={styles.submitButton}>
                 Додати
             </Button>
         </View>
     );
 };
 
+// Завантаження користувачів з API
+const fetchUsers = async () => {
+    const res = await fetch("https://reqres.in/api/users?per_page=12");
+    const json = await res.json();
+    return json.data;
+};
+
+// Екран для відображення користувачів
+const ScreenFour = () => {
+    const { theme, backgroundColor } = useContext(ThemeContext);
+    const { itemBgColor } = useContext(ItemsContext);
+    const [selectedItems, setSelectedItems] = useState([]);
+
+    const { data, isLoading, error } = useQuery({ queryKey: ['users'], queryFn: fetchUsers });
+
+    const toggleItemSelection = (item) => {
+        setSelectedItems(prev => {
+            if (prev.some(selected => selected.id === item.id)) {
+                return prev.filter(selected => selected.id !== item.id);
+            }
+            if (prev.length >= 3) return prev;
+            return [...prev, item];
+        });
+    };
+
+    const sortedData = data ? [...data].sort((a, b) => {
+        const aSelected = selectedItems.some(item => item.id === a.id);
+        const bSelected = selectedItems.some(item => item.id === b.id);
+
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        return 0;
+    }) : [];
+
+    if (isLoading) return <Text>Завантаження...</Text>;
+    if (error) return <Text>Помилка завантаження</Text>;
+
+    return (
+        <View style={[styles.container, { backgroundColor }]}>
+            <View style={styles.selectionInfo}>
+                <Text style={[styles.title, { color: theme === "dark" ? "white" : "black" }]}>
+                    Прикріплено: {selectedItems.length}/3
+                </Text>
+            </View>
+
+            <FlatList
+                data={sortedData}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                    <TouchableOpacity
+                        onPress={() => toggleItemSelection(item)}
+                        style={[
+                            styles.listItem,
+                            {
+                                backgroundColor: itemBgColor,
+                                borderColor: selectedItems.some(selected => selected.id === item.id)
+                                    ? '#007AFF'
+                                    : 'transparent',
+                                borderWidth: 2
+                            }
+                        ]}
+                    >
+                        <Image source={{ uri: item.avatar }} style={styles.image} />
+                        <View style={styles.textContainer}>
+                            <Text style={styles.listText}>
+                                {item.first_name} {item.last_name}
+                            </Text>
+                            <Text>
+                                {item.email}
+                            </Text>
+                        </View>
+                        {selectedItems.some(selected => selected.id === item.id) && (
+                            <View>
+                                <Text>📌</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                )}
+            />
+        </View>
+    );
+};
+
 // Діалог для відображення деталей антикваріату
-const DetailsDialog = ({ visible, item, onClose }) => {
+const DetailsDialog = ({ visible, item, onClose, navigation }) => {
     const { theme } = useContext(ThemeContext);
+
+    const handleDetailsPress = () => {
+        onClose();
+        navigation.navigate('ItemDetails', { item });
+    };
 
     return (
         <Portal>
@@ -265,11 +429,73 @@ const DetailsDialog = ({ visible, item, onClose }) => {
                         </View>
                     )}
                 </Dialog.Content>
-                <Dialog.Actions>
+                <Dialog.Actions style={{ justifyContent: 'space-between' }}>
+                    <Button onPress={handleDetailsPress}>Детальніше</Button>
                     <Button onPress={onClose}>Закрити</Button>
                 </Dialog.Actions>
             </Dialog>
         </Portal>
+    );
+};
+
+const ItemDetailsScreen = ({ route, navigation }) => {
+    const { item } = route.params;
+    const { theme, backgroundColor } = useContext(ThemeContext);
+
+    return (
+        <View style={[styles.container, { backgroundColor }]}>
+            <View style={styles.header}>
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={styles.backButton}
+                >
+                    <Icon
+                        name="arrow-left"
+                        size={24}
+                        color={theme === 'dark' ? 'white' : 'black'}
+                    />
+                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: theme === 'dark' ? 'white' : 'black' }]}>
+                    Деталі товару
+                </Text>
+            </View>
+
+            {/* Контент */}
+            <ScrollView contentContainerStyle={styles.detailsContainer}>
+                <Image
+                    source={images[item.image]}
+                    style={styles.detailsImage}
+                />
+
+                <View style={styles.detailsContent}>
+                    <Text style={[styles.detailsTitle, { color: theme === 'dark' ? 'white' : 'black' }]}>
+                        {item.title}
+                    </Text>
+
+                    <Text style={[styles.detailsPrice, { color: theme === 'dark' ? 'white' : 'black' }]}>
+                        Ціна: ${item.price}
+                    </Text>
+
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, { color: theme === 'dark' ? '#bbb' : '#666' }]}>
+                            Опис
+                        </Text>
+                        <Text style={[styles.detailsDescription, { color: theme === 'dark' ? 'white' : 'black' }]}>
+                            {item.description}
+                        </Text>
+                    </View>
+
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, { color: theme === 'dark' ? '#bbb' : '#666' }]}>
+                            Інформація
+                        </Text>
+                        <View style={styles.infoRow}>
+                            <Text style={[styles.infoLabel, { color: theme === 'dark' ? '#bbb' : '#666' }]}>ID: {item.id}</Text>
+                        </View>
+                    </View>
+                </View>
+            </ScrollView>
+        </View>
     );
 };
 
@@ -289,6 +515,8 @@ const TabNavigator = () => {
                         iconName = focused ? 'cog' : 'cog';
                     } else if (route.name === 'Додати') {
                         iconName = focused ? 'plus-circle' : 'plus-circle';
+                    } else if (route.name === 'Користувачі') {
+                        iconName = focused ? 'user-circle' : 'user-circle';
                     }
 
                     return <Icon name={iconName} size={size} color={color} />;
@@ -335,6 +563,11 @@ const TabNavigator = () => {
                 component={ScreenThree}
                 options={{ headerTitle: "Додати антикваріат" }}
             />
+            <Tab.Screen
+                name="Користувачі"
+                component={ScreenFour}
+                options={{ headerTitle: "Користувачі" }}
+            />
         </Tab.Navigator>
     );
 };
@@ -360,6 +593,7 @@ const MainNavigator = () => {
                 ) : (
                     <Stack.Screen name="Auth" component={AuthNavigator} />
                 )}
+                <Stack.Screen name="ItemDetails" component={ItemDetailsScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );
@@ -373,24 +607,27 @@ export default function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
 
-    // Існуючі користувачі
-    const users = [
-        { username: "admin", password: "admin123" },
-        { username: "user", password: "user123" },
-        { username: "test", password: "test123" },
-    ];
+    const login = async (username, password) => {
+        try {
+            const response = await fetch('https://reqres.in/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: username, password }),
+            });
 
-    const login = (username, password) => {
-        const foundUser = users.find(
-            (u) => u.username === username && u.password === password
-        );
-        if (foundUser) {
+            if (!response.ok) {
+                throw new Error('Помилка авторизації');
+            }
+
+            const data = await response.json();
             setIsAuthenticated(true);
-            setUser(foundUser);
-        } else {
+            setUser({ username, token: data.token });
+        } catch (error) {
             Alert.alert("Помилка", "Невірне ім'я користувача або пароль!");
         }
     };
+
+    login('eve.holt@reqres.in', 'cityslicka');
 
     const logout = () => {
         setIsAuthenticated(false);
@@ -403,8 +640,14 @@ export default function App() {
 
     const backgroundColor = theme === "dark" ? "#333" : "#f5f5f5";
 
-    const addItem = (title, price) => {
-        setItems([...items, { id: Date.now().toString(), title, price, image: "antiques/default.png" }]);
+    const addItem = (title, description, price, image) => {
+        setItems([...items, {
+            id: Date.now().toString(),
+            title,
+            description,
+            price,
+            image: image || "antiques/default.png"
+        }]);
     };
 
     const deleteItem = (id) => {
@@ -420,15 +663,17 @@ export default function App() {
     };
 
     return (
-        <Provider theme={customTheme}>
-            <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
-                <ItemsContext.Provider value={{ items, addItem, deleteItem, itemBgColor, setItemBgColor }}>
-                    <ThemeContext.Provider value={{ theme, toggleTheme, accentColor, setAccentColor, backgroundColor }}>
-                        <MainNavigator />
-                    </ThemeContext.Provider>
-                </ItemsContext.Provider>
-            </AuthContext.Provider>
-        </Provider>
+        <QueryClientProvider client={queryClient}>
+            <Provider theme={customTheme}>
+                <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+                    <ItemsContext.Provider value={{ items, addItem, deleteItem, itemBgColor, setItemBgColor }}>
+                        <ThemeContext.Provider value={{ theme, toggleTheme, accentColor, setAccentColor, backgroundColor }}>
+                            <MainNavigator />
+                        </ThemeContext.Provider>
+                    </ItemsContext.Provider>
+                </AuthContext.Provider>
+            </Provider>
+        </QueryClientProvider>
     );
 }
 
@@ -460,12 +705,17 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     userInfoContainer: {
-        marginBottom: 30,
+        marginTop: 30,
         alignItems: "center",
     },
     userInfoText: {
         fontSize: 18,
         marginBottom: 10,
+    },
+    usernameText: {
+        fontSize: 18,
+        marginBottom: 10,
+        fontWeight: "bold",
     },
     logoutButton: {
         marginTop: 10,
@@ -481,7 +731,6 @@ const styles = StyleSheet.create({
         padding: 10,
         marginBottom: 5,
         borderRadius: 5,
-        marginHorizontal: 10,
     },
     image: { width: 50, height: 50, marginRight: 10 },
     listText: { fontSize: 16, flex: 1 },
@@ -492,6 +741,12 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginBottom: 30,
     },
+
+    textContainer: {
+        flex: 1,
+        flexShrink: 1,
+    },
+
     input: { borderWidth: 1, padding: 10, width: "100%", marginBottom: 30, borderRadius: 5 },
     colorPickerContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 25, paddingHorizontal: 10 },
     colorOption: { width: 40, height: 40, marginHorizontal: 5, borderRadius: 5 },
@@ -502,7 +757,7 @@ const styles = StyleSheet.create({
         elevation: 8, // For Android shadow
         shadowOffset: { width: 0, height: -3 }, // For iOS shadow
         shadowRadius: 4,
-        shadowColor: 'rgba(0, 0, 0, 0.1)', // This will stay consistent regardless of theme
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
         shadowOpacity: 1,
     },
     lightDialog: {
@@ -523,29 +778,118 @@ const styles = StyleSheet.create({
         color: 'green',
         fontWeight: 'bold',
     },
+
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    backButton: {
+        marginRight: 15,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    detailsContainer: {
+        paddingBottom: 20,
+    },
+    detailsContent: {
+        paddingHorizontal: 15,
+    },
+    detailsImage: {
+        width: '100%',
+        height: 300,
+        resizeMode: 'contain',
+        marginBottom: 20,
+    },
+    detailsTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 5,
+    },
+    detailsPrice: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginBottom: 20,
+        color: '#2ecc71',
+    },
+    detailsDescription: {
+        fontSize: 16,
+        lineHeight: 24,
+        marginBottom: 20,
+    },
+    section: {
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 10,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        marginBottom: 5,
+    },
+    infoLabel: {
+        width: 80,
+        fontSize: 16,
+    },
+    infoValue: {
+        fontSize: 16,
+        flex: 1,
+    },
+
+    input: {
+        borderWidth: 1,
+        borderRadius: 5,
+        padding: 10,
+        marginBottom: 15,
+    },
+    imagePickerContainer: {
+        marginBottom: 20,
+        alignItems: 'center',
+    },
+    imageButton: {
+        marginBottom: 10,
+    },
+    previewImage: {
+        width: 200,
+        height: 200,
+        borderRadius: 5,
+        marginBottom: 10,
+    },
+    removeImageButton: {
+        marginBottom: 10,
+    },
+    submitButton: {
+        marginTop: 10,
+    },
 });
 
 // Завантаження зображень
 const images = {
-    "antiques/default.png": require("./assets/antiques/default.png"),
-    "antiques/amphora.png": require("./assets/antiques/amphora.png"),
-    "antiques/black-knight-helm.png": require("./assets/antiques/black-knight-helm.png"),
-    "antiques/medal.png": require("./assets/antiques/medal.png"),
-    "antiques/pocket-watch.png": require("./assets/antiques/pocket-watch.png"),
-    "antiques/lyre.png": require("./assets/antiques/lyre.png"),
-    "antiques/column-vase.png": require("./assets/antiques/column-vase.png"),
-    "antiques/gem-pendant.png": require("./assets/antiques/gem-pendant.png"),
-    "antiques/gladius.png": require("./assets/antiques/gladius.png"),
-    "antiques/hunting-horn.png": require("./assets/antiques/hunting-horn.png"),
-    "antiques/jeweled-chalice.png": require("./assets/antiques/jeweled-chalice.png"),
-    "antiques/jug.png": require("./assets/antiques/jug.png"),
-    "antiques/luger.png": require("./assets/antiques/luger.png"),
-    "antiques/spartan-helmet.png": require("./assets/antiques/spartan-helmet.png"),
-    "antiques/teapot.png": require("./assets/antiques/teapot.png"),
-    "antiques/thor-hammer.png": require("./assets/antiques/thor-hammer.png"),
-    "antiques/umbrella-bayonet.png": require("./assets/antiques/umbrella-bayonet.png"),
-    "antiques/warlord-helmet.png": require("./assets/antiques/warlord-helmet.png"),
-    "antiques/waterskin.png": require("./assets/antiques/waterskin.png"),
-    "antiques/power-ring.png": require("./assets/antiques/power-ring.png"),
-    "antiques/rune-sword.png": require("./assets/antiques/rune-sword.png"),
+    "default.png": require("./app/antiques/img/default.png"),
+    "amphora.png": require("./app/antiques/img/amphora.png"),
+    "black-knight-helm.png": require("./app/antiques/img/black-knight-helm.png"),
+    "medal.png": require("./app/antiques/img/medal.png"),
+    "pocket-watch.png": require("./app/antiques/img/pocket-watch.png"),
+    "lyre.png": require("./app/antiques/img/lyre.png"),
+    "column-vase.png": require("./app/antiques/img/column-vase.png"),
+    "gem-pendant.png": require("./app/antiques/img/gem-pendant.png"),
+    "gladius.png": require("./app/antiques/img/gladius.png"),
+    "hunting-horn.png": require("./app/antiques/img/hunting-horn.png"),
+    "jeweled-chalice.png": require("./app/antiques/img/jeweled-chalice.png"),
+    "jug.png": require("./app/antiques/img/jug.png"),
+    "luger.png": require("./app/antiques/img/luger.png"),
+    "spartan-helmet.png": require("./app/antiques/img/spartan-helmet.png"),
+    "teapot.png": require("./app/antiques/img/teapot.png"),
+    "thor-hammer.png": require("./app/antiques/img/thor-hammer.png"),
+    "umbrella-bayonet.png": require("./app/antiques/img/umbrella-bayonet.png"),
+    "warlord-helmet.png": require("./app/antiques/img/warlord-helmet.png"),
+    "waterskin.png": require("./app/antiques/img/waterskin.png"),
+    "power-ring.png": require("./app/antiques/img/power-ring.png"),
+    "rune-sword.png": require("./app/antiques/img/rune-sword.png"),
 };
