@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { ItemsContext } from "../contexts/ItemsContext";
 import ThemeSwitcher from "../components/ThemeSwitcher";
+import SessionModeSwitcher from "../components/SessionModeSwitcher";
 import ColorPicker from "../components/ColorPicker";
 import UserInfo from "../components/UserInfo";
 import styles from "../styles/styles";
@@ -25,6 +26,9 @@ const SettingsScreen = () => {
                 Виберіть колір фону елементів:
             </Text>
             <ColorPicker colors={availableBgColors} selectedColor={itemBgColor} onSelect={setItemBgColor} isBackground />
+
+            <SessionModeSwitcher />
+
             <UserInfo />
         </View>
     );

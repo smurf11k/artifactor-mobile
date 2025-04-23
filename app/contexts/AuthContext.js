@@ -1,4 +1,5 @@
 import React, { createContext, useState } from "react";
+import { loginUser } from "../utils/api";
 import { Alert } from "react-native";
 
 export const AuthContext = createContext();
@@ -9,15 +10,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            const response = await fetch('https://reqres.in/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: username, password }),
-            });
-
-            if (!response.ok) throw new Error('Login failed');
-
-            const data = await response.json();
+            const data = await loginUser(username, password);
             setIsAuthenticated(true);
             setUser({ username, token: data.token });
         } catch (error) {

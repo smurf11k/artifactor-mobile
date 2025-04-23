@@ -3,13 +3,8 @@ import { View, FlatList, Text, Image, TouchableOpacity } from "react-native";
 import { useQuery } from '@tanstack/react-query';
 import { ThemeContext } from "../contexts/ThemeContext";
 import { ItemsContext } from "../contexts/ItemsContext";
+import { fetchUsers } from "../utils/api";
 import styles from "../styles/styles";
-
-const fetchUsers = async () => {
-    const res = await fetch("https://reqres.in/api/users?per_page=12");
-    const json = await res.json();
-    return json.data;
-};
 
 const UsersScreen = () => {
     const { theme, backgroundColor } = useContext(ThemeContext);
