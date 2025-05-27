@@ -1,5 +1,6 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { View, FlatList } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { ItemsContext } from "../contexts/ItemsContext";
 import { ThemeContext } from "../contexts/ThemeContext";
 import ListItem from "../components/ListItem";
@@ -12,6 +13,18 @@ const ListScreen = ({ navigation }) => {
     const { theme, backgroundColor } = useContext(ThemeContext);
     const [visible, setVisible] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
+    const opacity = useSharedValue(1);
+
+    useEffect(() => {
+        opacity.value = withTiming(0, { duration: 200 });
+        setTimeout(() => {
+            opacity.value = withTiming(1, { duration: 200 });
+        }, 200);
+    }, [backgroundColor]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
+    }));
 
     const showDialog = (item) => {
         setSelectedItem(item);
@@ -19,12 +32,13 @@ const ListScreen = ({ navigation }) => {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor }]}>
+        <Animated.View style={[styles.container, { backgroundColor }, animatedStyle]}>
             <FlatList
                 data={items}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
+                renderItem={({ item, index }) => (
                     <ListItem
+                        index={index}
                         title={item.title}
                         image={
                             item.image.startsWith('file://') || item.image.startsWith('http')
@@ -39,14 +53,13 @@ const ListScreen = ({ navigation }) => {
                 )}
                 contentContainerStyle={{ paddingTop: 10, paddingBottom: 10 }}
             />
-
             <DetailsDialog
                 visible={visible}
                 item={selectedItem}
                 onClose={() => setVisible(false)}
                 navigation={navigation}
             />
-        </View>
+        </Animated.View>
     );
 };
 

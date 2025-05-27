@@ -1,5 +1,7 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const forceReset = false; // для скидання даних при запуску
 export const ItemsContext = createContext();
 
 export const ItemsProvider = ({ children, initialItems }) => {
@@ -10,6 +12,9 @@ export const ItemsProvider = ({ children, initialItems }) => {
     useEffect(() => {
         const loadItems = async () => {
             try {
+                if (forceReset) {
+                    await AsyncStorage.removeItem('@items');
+                }
                 const storedItems = await AsyncStorage.getItem('@items');
                 if (storedItems !== null && !sessionMode) {
                     setItems(JSON.parse(storedItems));
@@ -62,11 +67,21 @@ export const ItemsProvider = ({ children, initialItems }) => {
         setItems(prev => prev.filter((item) => item.id !== id));
     };
 
+    const resetItems = async () => {
+        try {
+            await AsyncStorage.removeItem('@items');
+            setItems(initialItems);
+        } catch (error) {
+            console.error("Не вдалося скинути items", error);
+        }
+    };
+
     return (
         <ItemsContext.Provider value={{
             items,
             addItem,
             deleteItem,
+            resetItems,
             itemBgColor,
             setItemBgColor,
             sessionMode,
