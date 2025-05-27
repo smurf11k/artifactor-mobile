@@ -33,6 +33,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ace5b549-fc40-4e39-9fb8-48781b9712b4"
+      }
+    },
+    "owner": "smurfik"
   }
 }
