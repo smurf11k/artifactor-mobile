@@ -9,5 +9,7 @@ Simple mobile app made by using **Expo** and **React** for a school project.
 - *Addittion Screen* for adding elements to the list on *Home Screen*
 - User list on *Users Screen* fetched from [API](https://reqres.in)
 
+[Download APK](https://expo.dev/accounts/smurfik/projects/artifactor-mobile/builds/042ebd76-e1dc-415f-897f-9c3275bcc4bf)
+
 ## License
 This project is open-source and can be used for educational purposes.
