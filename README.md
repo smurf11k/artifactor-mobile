@@ -20,33 +20,33 @@ It was developed as part of a **college coursework project** to demonstrate mobi
 ## App Preview
 
 ### Loading Screen
-<p align="center">
+<p align="left">
   <img src="img/loading.gif" height="500" />
 </p>
 
 ### Authentication & Home Screen
-<p align="center">
+<p align="left">
   <img src="img/auth.gif" height="500" />
 </p>
 
 ### Item Details
-<p align="center">
+<p align="left">
   <img src="img/details.gif" height="500" />
 </p>
 
 ### Page Switching Animation
-<p align="center">
+<p align="left">
   <img src="img/page.gif" height="500" />
 </p>
 
 ### Theme Customization
-<p align="center">
+<p align="left">
   <img src="img/theme.gif" height="500" />
 </p>
 
 ### Users List & Pinning
-<p align="center">
-  <img src="img/pin-use.gif" height="500" />
+<p align="left">
+  <img src="img/pin-user.gif" height="500" />
 </p>
 
 ---
