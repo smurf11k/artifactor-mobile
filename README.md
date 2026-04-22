@@ -9,7 +9,7 @@ It was developed as part of a **college coursework project** to demonstrate mobi
 
 - User authentication using the **Reqres API**
 - List view of antique items on the Home screen
-- Detailed view for each item доступний через діалог
+- Detailed view for each item is available through a dialog
 - Adding new items to the main list
 - Accent color and theme customization
 - Users list fetched from an external API with pinning support
