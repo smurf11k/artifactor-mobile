@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 # Artifactor Mobile
 
 **Artifactor** is a lightweight mobile application built with **React** and **Expo**.  
